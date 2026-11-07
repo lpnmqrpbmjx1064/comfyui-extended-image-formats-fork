@@ -1,2 +1,5 @@
-jxlpy
 pillow-avif-plugin
+# jxlpy is the old JXL backend and cannot write EXIF, so jxl files saved with it carry no
+# workflow. pillow-jxl-plugin replaces it (quality/lossless plus EXIF). jxlpy is still
+# detected as a fallback for existing installs, but install this one.
+pillow-jxl-plugin

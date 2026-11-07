@@ -1,0 +1,6 @@
+# Kept out of `comfy node pack` archives.
+.github/
+test/
+.gitignore
+.gitattributes
+.comfyignore

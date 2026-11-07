@@ -11,6 +11,7 @@ from comfy.cli_args import args
 
 avif_supported = False
 jxl_supported = False
+jxl_metadata = False
 
 # Avif
 try:
@@ -21,12 +22,46 @@ else:
     avif_supported = True
 
 # Jxl
+# pillow-jxl-plugin writes EXIF and exposes quality/lossless; jxlpy cannot write EXIF
+# at all (its own support table lists "Support EXIF metadata: Failed"). jxlpy is kept
+# only so an existing install keeps working, without metadata.
 try:
-    from jxlpy import JXLImagePlugin  # noqa: F401
+    import pillow_jxl  # noqa: F401
 except:  # noqa: E722
-    pass
+    try:
+        from jxlpy import JXLImagePlugin  # noqa: F401
+    except:  # noqa: E722
+        pass
+    else:
+        jxl_supported = True
 else:
     jxl_supported = True
+    jxl_metadata = True
+
+
+def encoder_quality_args(format, quality):
+    """Map the single quality slider onto each encoder's real options.
+
+    Measured against the installed encoders, not assumed:
+      jxl  - quality=100 raises "The encoder API is used in an incorrect way", so
+             lossless has to be requested explicitly with lossless=True (bit-exact).
+      webp - quality=100 on its own is still lossy; lossless=True is bit-exact.
+      avif - pillow-avif-plugin has no lossless mode; quality=100 with 4:4:4 chroma
+             is as close as it gets, and is not bit-exact.
+      jpeg - always lossy, 100 is just its best setting.
+    png and dds never reach here: png keeps ComfyUI's compress_level, and dds has no
+    quality knob.
+    """
+    quality = max(1, min(100, int(quality)))
+    if format in ("jxl", "webp"):
+        return {"lossless": True} if quality >= 100 else {"quality": quality}
+    if format == "avif":
+        if quality >= 100:
+            return {"quality": 100, "subsampling": "4:4:4"}
+        return {"quality": quality}
+    if format == "jpeg":
+        return {"quality": quality}
+    return {}
 
 
 class ExtendedSaveImage(SaveImage):
@@ -37,6 +72,17 @@ class ExtendedSaveImage(SaveImage):
                 "images": ("IMAGE",),
                 "filename_prefix": ("STRING", {"default": "ComfyUI"}),
                 "format": (["png", "jpeg", "webp", "dds"],),
+                "quality": (
+                    "INT",
+                    {
+                        "default": 90,
+                        "min": 1,
+                        "max": 100,
+                        "step": 1,
+                        "tooltip": "Encoder quality: 1 is smallest and most lossy, 100 is "
+                        "lossless where the format supports it (jxl, webp). png and dds ignore it.",
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -59,6 +105,7 @@ class ExtendedSaveImage(SaveImage):
         images,
         filename_prefix="ComfyUI",
         format="png",
+        quality=90,
         prompt=None,
         extra_pnginfo=None,
     ):
@@ -73,6 +120,7 @@ class ExtendedSaveImage(SaveImage):
             i = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
             metadata = None
+            exif_bytes = None
             if not args.disable_metadata:
                 metadata = PngInfo()
                 if prompt is not None:
@@ -80,6 +128,20 @@ class ExtendedSaveImage(SaveImage):
                 if extra_pnginfo is not None:
                     for x in extra_pnginfo:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
+
+                # Every non-png format carries its metadata as an EXIF UserComment.
+                # Build it as *bytes*: the jxl plugin rejects a Pillow Exif object,
+                # while bytes work for jxl, jpeg, webp and avif alike.
+                exif_payload = {}
+                if prompt is not None:
+                    exif_payload["prompt"] = prompt
+                if extra_pnginfo is not None:
+                    for key in extra_pnginfo:
+                        exif_payload[key] = extra_pnginfo[key]
+                if exif_payload:
+                    exif = Image.Exif()
+                    exif[0x9286] = json.dumps(exif_payload)  # UserComment
+                    exif_bytes = exif.tobytes()
 
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
             file = f"{filename_with_batch_num}_{counter:05}_.{format}"
@@ -97,22 +159,15 @@ class ExtendedSaveImage(SaveImage):
                 print("DDS format does not support metadata.")
 
             else:
-                if format == "jxl":
-                    print("JXL export doesn't have metadata/import support yet!")
-
-                exif = {}
-
-                if prompt is not None:
-                    exif["prompt"] = prompt
-                if extra_pnginfo is not None:
-                    for info in extra_pnginfo:
-                        exif[info] = extra_pnginfo[info]
-
-                if extra_pnginfo["workflow"]:
-                    imgexif = img.getexif()
-                    imgexif[0x9286] = json.dumps(exif)  # UserComment
-
-                img.save(os.path.join(full_output_folder, file), exif=imgexif)
+                save_args = encoder_quality_args(format, quality)
+                if exif_bytes is not None:
+                    save_args["exif"] = exif_bytes
+                img.save(os.path.join(full_output_folder, file), **save_args)
+                if format == "jxl" and not jxl_metadata:
+                    print(
+                        "JXL metadata needs pillow-jxl-plugin; jxlpy cannot write EXIF, "
+                        "so this file was saved without its workflow."
+                    )
 
             results.append(
                 {"filename": file, "subfolder": subfolder, "type": self.type}

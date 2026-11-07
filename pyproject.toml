@@ -1,16 +1,20 @@
 [project]
-name = "comfyui_extendedimageformats"
-description = "Adds a custom node for saving images in webp, jpeg, avif, jxl (no metadata) and supports loading workflows from saved images"
-version = "1.0.0"
+name = "extended-image-formats-fork"
+description = "Save images as webp, jpeg, avif, jxl or dds with a quality slider, and load the workflow back out of the saved image"
+version = "1.1.0"
 license = { file = "LICENSE" }
-dependencies = ["pillow-avif-plugin", "jxlpy"]
+dependencies = ["pillow-avif-plugin", "pillow-jxl-plugin"]
 
-#pillow-avif-plugin`, for jxl support install `jxlpy`
 [project.urls]
-Repository = "https://github.com/kaanyalova/ComfyUI_ExtendedImageFormats"
-#  Used by Comfy Registry https://comfyregistry.org
+Repository = "https://github.com/lpnmqrpbmjx1064/comfyui-extended-image-formats-fork"
+"Bug Tracker" = "https://github.com/lpnmqrpbmjx1064/comfyui-extended-image-formats-fork/issues"
+Upstream = "https://github.com/kaanyalova/ComfyUI_ExtendedImageFormats"
 
+# Used by Comfy Registry https://comfyregistry.org
+# PublisherId is deliberately empty: publishing must happen under the fork owner's own
+# registry account, and an empty id makes `comfy node publish` refuse to run instead of
+# silently publishing as upstream's "kaan".
 [tool.comfy]
-PublisherId = "kaan"
-DisplayName = "ComfyUI Extended Image Formats"
+PublisherId = ""
+DisplayName = "Extended Image Formats (fork)"
 Icon = ""
