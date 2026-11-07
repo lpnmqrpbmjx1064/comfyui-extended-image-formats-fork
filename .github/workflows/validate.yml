@@ -1,0 +1,27 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install comfy-cli
+        run: pip install comfy-cli
+
+      # comfy-cli's own check is weak: it only tests that version is non-empty and runs
+      # ruff with --exit-zero, so it cannot fail on a security problem.
+      - name: comfy node validate
+        run: comfy node validate
+
+      - name: ruff security gate (this one can fail)
+        run: |
+          pip install ruff
+          ruff check --select S102,S307,S605,S607,E702 --exclude test --exclude .git .

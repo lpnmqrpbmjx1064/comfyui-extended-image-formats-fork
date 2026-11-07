@@ -1,0 +1,51 @@
+name: Tests (CPU)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check out ComfyUI
+        uses: actions/checkout@v4
+        with:
+          repository: comfyanonymous/ComfyUI
+          path: comfyui
+
+      # CPU torch first, so ComfyUI's own requirements resolve against it.
+      - name: Install CPU torch
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+
+      - name: Install ComfyUI requirements
+        run: pip install -r comfyui/requirements.txt
+
+      - name: Install encoders and imageio
+        run: pip install pillow-avif-plugin pillow-jxl-plugin imageio
+
+      # No pipe into tee: a `cmd | tee` reports tee's exit status and would hide a
+      # failing test behind a green job.
+      - name: Node checks (real ComfyUI on CPU)
+        run: |
+          export COMFY_DIR="$GITHUB_WORKSPACE/comfyui"
+          export WORK_DIR="$RUNNER_TEMP/eif"
+          mkdir -p "$WORK_DIR"
+          python test/run_node_checks.py > "$WORK_DIR/node.log" 2>&1
+          rc=$?
+          cat "$WORK_DIR/node.log"
+          grep '^OUTPUT_DIR=' "$WORK_DIR/node.log" | cut -d= -f2- > "$WORK_DIR/outdir"
+          exit $rc
+
+      - name: Frontend checks (shipped web/*.js under node)
+        run: |
+          export SAVED_DIR="$(cat "$RUNNER_TEMP/eif/outdir")"
+          node test/run_frontend_checks.mjs

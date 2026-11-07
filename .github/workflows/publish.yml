@@ -1,21 +1,45 @@
 name: Publish to Comfy registry
+
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-    paths:
-      - "pyproject.toml"
+    tags:
+      - "v*"
 
 jobs:
-  publish-node:
-    name: Publish Custom Node to registry
+  publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-      - name: Publish Custom Node
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # GitHub sets GITHUB_REF_NAME itself, so these guards need no expression
+      # interpolation and can be run (and tested) locally.
+      - name: Tag must match pyproject version
+        run: |
+          python - <<'PY'
+          import os, sys, tomllib
+          version = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
+          tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          if tag != version:
+              sys.exit(f"tag {tag!r} does not match pyproject version {version!r}")
+          print(f"tag {tag} matches pyproject version")
+          PY
+
+      - name: PublisherId must belong to this fork, not upstream
+        run: |
+          python - <<'PY'
+          import os, sys, tomllib
+          pub = tomllib.load(open("pyproject.toml", "rb"))["tool"]["comfy"]["PublisherId"]
+          if not pub:
+              sys.exit("PublisherId is empty - publish under the fork owner's registry account first")
+          if pub == "kaan":
+              sys.exit("PublisherId is upstream's - refusing to publish a fork under upstream's name")
+          print(f"PublisherId {pub!r} accepted")
+          PY
+
+      - name: Publish node
         uses: Comfy-Org/publish-node-action@main
         with:
-          ## Add your own personal access token to your Github Repository secrets and reference it here.
           personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
