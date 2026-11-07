@@ -24,7 +24,9 @@ at commit `aee4ac0` (upstream `1.0.0`).
   real ComfyUI on CPU (all formats × q=1/50/90/100, bit-exactness, EXIF round-trip) and the
   shipped `web/*.js` is exercised under Node with only ComfyUI's own modules stubbed.
 - CI: `validate.yml` (comfy-cli validation + ruff security gate including `S605`/`S607`) and
-  `test.yml` (CPU torch + ComfyUI, both harnesses) run on every push and PR.
+  `test.yml` (CPU torch + ComfyUI, both harnesses) run on every push and PR. Every action ref is
+  pinned to a 40-hex commit SHA, every workflow declares a read-only `permissions:` block, and the
+  registry publish path is `workflow_dispatch` only with a fail-closed publisher-identity guard.
 
 ### Changed
 
