@@ -98,12 +98,13 @@ the registry yet (`PublisherId` is deliberately empty), so install via git url f
 
 - dds: no in-file metadata (upstream behaviour, unchanged)
 - avif: no lossless mode (see above)
-- the fork's own CI is not in this repo: `validate.yml` and `test.yml` are written and verified
-  locally, but the token used to push here lacks the `workflow` scope GitHub requires for
-  `.github/workflows/*`. Upstream's `publish.yml` is still in the tree and inert — Actions is
-  disabled on a fresh fork, and it would need a `REGISTRY_ACCESS_TOKEN` that this repo does not have
-- the tests in `test/` need a ComfyUI checkout and the encoders installed; they are not
-  wired into CI
+- three workflows run on GitHub Actions: `validate.yml` (comfy-cli validation + a ruff security
+  gate that includes `S605`/`S607`, so it can actually fail), `test.yml` (installs CPU torch and
+  ComfyUI, then runs both harnesses above — 49 node checks and 29 frontend checks), and
+  `publish.yml` (tag-driven, refuses to publish with an empty or upstream `PublisherId`; needs a
+  `REGISTRY_ACCESS_TOKEN` secret, which is why it is the one job that fails today)
+- the first two run on every push and PR and are green; the tests in `test/` therefore run in CI,
+  not only locally
 
 ## Tests
 
