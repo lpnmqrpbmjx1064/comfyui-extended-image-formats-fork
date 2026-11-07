@@ -98,8 +98,10 @@ the registry yet (`PublisherId` is deliberately empty), so install via git url f
 
 - dds: no in-file metadata (upstream behaviour, unchanged)
 - avif: no lossless mode (see above)
-- CI is not in this repo yet: the workflows are written, but the token used to push here
-  lacks the `workflow` scope GitHub requires for `.github/workflows/*`
+- the fork's own CI is not in this repo: `validate.yml` and `test.yml` are written and verified
+  locally, but the token used to push here lacks the `workflow` scope GitHub requires for
+  `.github/workflows/*`. Upstream's `publish.yml` is still in the tree and inert — Actions is
+  disabled on a fresh fork, and it would need a `REGISTRY_ACCESS_TOKEN` that this repo does not have
 - the tests in `test/` need a ComfyUI checkout and the encoders installed; they are not
   wired into CI
 
