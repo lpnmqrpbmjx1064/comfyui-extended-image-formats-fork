@@ -21,6 +21,13 @@ NODE = os.environ.get("NODE_DIR") or REPO
 WORK = os.environ.get("WORK_DIR") or tempfile.mkdtemp(prefix="eif-test-")
 OUTDIR = os.path.join(WORK, "comfy_output")
 
+# Fail with a usable message: an inherited-but-stale NODE_DIR/COMFY_DIR otherwise
+# surfaces as a bare FileNotFoundError deep inside importlib.
+if not os.path.isfile(os.path.join(NODE, "__init__.py")):
+    sys.exit(f"NODE_DIR does not look like the custom node ({NODE}/__init__.py missing)")
+if not os.path.isfile(os.path.join(COMFY, "nodes.py")):
+    sys.exit(f"COMFY_DIR does not look like a ComfyUI checkout ({COMFY}/nodes.py missing)")
+
 shutil.rmtree(OUTDIR, ignore_errors=True)
 os.makedirs(OUTDIR, exist_ok=True)
 
