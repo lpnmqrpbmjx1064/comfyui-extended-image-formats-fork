@@ -1,9 +1,11 @@
 name: Publish to Comfy registry
 
 on:
-  push:
-    tags:
-      - "v*"
+  # Manual only. Registry publishing is out of scope for this fork, and a tag-gated trigger
+  # made every tag push show a red run (the PublisherId guard below failing by design).
+  # The guard still runs, so a manual dispatch validates the tag/version/PublisherId chain
+  # before attempting anything.
+  workflow_dispatch:
 
 jobs:
   publish:
